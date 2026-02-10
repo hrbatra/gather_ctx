@@ -24,6 +24,22 @@ from typing import Any
 DEFAULT_TOKEN_ENCODING = "cl100k_base"
 DEFAULT_HYBRID_BUDGET = 50_000
 DEFAULT_EXCLUDED_DIRS = ("node_modules", "__pycache__", ".git", "venv", ".venv")
+_ROLE_WITH_QUERY = (
+    '<role>You are a senior software architect. The user has a specific request '
+    'described in the query below. Analyze the provided context carefully, cite '
+    'specific files and line ranges in your reasoning, and address the query '
+    'directly while surfacing any relevant risks or trade-offs.</role>'
+)
+_ROLE_WITHOUT_QUERY = (
+    '<role>You are a senior software architect reviewing the provided codebase '
+    'context. Scan for code quality issues, potential bugs, architectural '
+    'concerns, and improvement opportunities. Cite specific files and line '
+    'ranges in your reasoning.</role>'
+)
+
+
+def _role_tag(query: str) -> str:
+    return _ROLE_WITH_QUERY if query.strip() else _ROLE_WITHOUT_QUERY
 DEFAULT_HYBRID_SETTINGS: dict[str, int | float | bool] = {
     "small_file_token_threshold": 1_200,
     "large_file_head_lines": 240,
@@ -382,6 +398,10 @@ def format_context(
     """Format full files into prompt-ready context (legacy behavior)."""
     sections = []
 
+    # Role preamble
+    sections.append(_role_tag(query))
+    sections.append("")
+
     # Header
     sections.append("<context>")
 
@@ -419,7 +439,7 @@ def format_context_from_units(
     full_tree: bool = False,
 ) -> str:
     """Format context from explicit units (full files, line slices, symbol slices)."""
-    sections = ["<context>"]
+    sections = [_role_tag(query), "", "<context>"]
 
     if include_tree and units:
         tree_paths = sorted({unit.path for unit in units})
